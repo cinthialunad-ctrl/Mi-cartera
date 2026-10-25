@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mi Cartera</title>
+<meta name="description" content="Seguí tus inversiones de forma simple, en pesos y en dólares.">
+<meta name="theme-color" content="#EEF3F1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1714" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <header class="appbar">
+    <div class="brand"><img src="icon-192.png" alt="" width="28" height="28"><span>Mi Cartera</span></div>
+    <button class="iconbtn" id="btn-ajustes" type="button" aria-label="Ajustes">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    </button>
+  </header>
+
+  <main>
+    <!-- INICIO -->
+    <section class="view" id="view-inicio" data-view="inicio">
+      <div id="bienvenida" class="welcome" hidden>
+        <h1>¡Hola! Esta es tu cartera</h1>
+        <p>Acá vas a ver cuánto vale lo que invertiste, si vas ganando o perdiendo, y qué significa cada cosa, sin palabras raras.</p>
+        <p>Para empezar, cargá lo que ya tenés en Cocos. Lo podés copiar de la pantalla de cada inversión.</p>
+        <div class="stack">
+          <button class="btn primary" type="button" data-action="primera">Cargar lo que ya tengo</button>
+          <button class="btn" type="button" data-action="efectivo">Cargar mi efectivo</button>
+        </div>
+        <p class="fine">Tus datos quedan guardados solo en este celular.</p>
+      </div>
+
+      <div id="resumen">
+        <div class="card hero">
+          <div class="hero-top">
+            <span class="eyebrow">Tu plata hoy</span>
+            <div class="seg" role="group" aria-label="Ver en">
+              <button type="button" data-cur="ars" aria-pressed="false">AR$</button>
+              <button type="button" data-cur="usd" aria-pressed="true">US$</button>
+            </div>
+          </div>
+          <div class="total num" id="total">—</div>
+          <div class="result" id="resultado"></div>
+          <p class="plain" id="explicacion"></p>
+        </div>
+
+        <div class="nudge" id="aviso-precios" hidden>
+          <span id="aviso-texto"></span>
+          <button class="btn small" type="button" data-action="precios">Actualizar</button>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>Cómo viene</h2><span class="muted small" id="rango"></span></div>
+          <svg id="grafico" viewBox="0 0 320 130" preserveAspectRatio="none" role="img" aria-label="Evolución del valor de tu cartera"></svg>
+          <p class="muted small" id="grafico-vacio">Cada día que abras la app se guarda un punto. En unos días vas a ver la curva de tu cartera.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>¿Dónde está tu plata?</h2></div>
+          <div class="alloc" id="alloc"></div>
+          <ul class="legend" id="legend"></ul>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Dólar CCL</h2>
+            <button class="term" type="button" data-term="ccl">¿Qué es?</button>
+          </div>
+          <div class="ccl-row">
+            <div class="num big2" id="ccl-valor">—</div>
+            <button class="btn small" type="button" id="btn-ccl">Actualizar</button>
+          </div>
+          <p class="muted small" id="ccl-fecha"></p>
+        </div>
+
+        <div class="card tip" id="tip"></div>
+      </div>
+    </section>
+
+    <!-- INVERSIONES -->
+    <section class="view" id="view-inversiones" data-view="inversiones" hidden>
+      <h1 class="view-title">Mis inversiones</h1>
+      <div class="stack-h">
+        <button class="btn primary" type="button" data-action="movimiento">Registrar movimiento</button>
+        <button class="btn" type="button" data-action="precios">Actualizar precios</button>
+      </div>
+      <div id="posiciones" class="list"></div>
+
+      <div class="card">
+        <div class="card-head"><h2>Efectivo en la cuenta</h2><button class="link" type="button" data-action="efectivo">Editar</button></div>
+        <div id="efectivo"></div>
+      </div>
+
+      <h2 class="section-title">Movimientos</h2>
+      <div id="movimientos" class="list"></div>
+    </section>
+
+    <!-- APRENDER -->
+    <section class="view" id="view-aprender" data-view="aprender" hidden>
+      <h1 class="view-title">Aprender</h1>
+      <p class="muted">Todo lo que aparece en la app, explicado en simple. Tocá un tema para leerlo.</p>
+      <label class="search"><span class="sr">Buscar</span>
+        <input id="buscar" type="search" placeholder="Buscar: dólar, dividendo, riesgo…" autocomplete="off">
+      </label>
+      <div id="glosario" class="list"></div>
+    </section>
+
+    <!-- PREGUNTAR -->
+    <section class="view" id="view-preguntar" data-view="preguntar" hidden>
+      <h1 class="view-title">Preguntale a Claude</h1>
+      <p class="muted">¿Tenés una duda? Escribila como te salga. Se abre Claude con tu pregunta lista para enviar.</p>
+      <div class="chips" id="sugerencias"></div>
+      <label class="field"><span>Tu pregunta</span>
+        <textarea id="pregunta" rows="4" placeholder="Ej: ¿Está bien tener toda mi plata en SPY?"></textarea>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="con-cartera" checked>
+        <span>Contarle a Claude qué tengo invertido, para que la respuesta sea sobre mi caso</span>
+      </label>
+      <button class="btn primary wide" type="button" id="btn-preguntar">Preguntar a Claude</button>
+      <p class="fine">La pregunta también queda copiada, por si tenés que pegarla. Claude explica y te ayuda a entender, pero no reemplaza a un asesor financiero.</p>
+    </section>
+  </main>
+
+  <nav class="tabbar" aria-label="Secciones">
+    <button type="button" data-tab="inicio" aria-current="page">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      <span>Inicio</span></button>
+    <button type="button" data-tab="inversiones">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Inversiones</span></button>
+    <button type="button" data-tab="aprender">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5zM20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      <span>Aprender</span></button>
+    <button type="button" data-tab="preguntar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 9.5a2 2 0 1 1 3 1.7c-.6.4-1 .8-1 1.5M12 14.5v.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Preguntar</span></button>
+  </nav>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true"><div class="sheet-in" id="sheet-in"></div></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="glosario.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
