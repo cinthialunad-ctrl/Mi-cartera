@@ -1,0 +1,72 @@
+name: Actualizar precios
+
+on:
+  schedule:
+    # Lunes a viernes: 12:37, 15:37 y 18:17 hora argentina
+    - cron: "37 15 * * 1-5"
+    - cron: "37 18 * * 1-5"
+    - cron: "17 21 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  precios:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bajar precios de CEDEARs y dolar CCL
+        run: |
+          python3 - <<'EOF'
+          import json, urllib.request, datetime
+
+          def bajar(url):
+              req = urllib.request.Request(url, headers={"User-Agent": "mi-cartera"})
+              with urllib.request.urlopen(req, timeout=40) as r:
+                  return json.load(r)
+
+          ccl = None
+          try:
+              d = bajar("https://dolarapi.com/v1/dolares/contadoconliqui")
+              ccl = float(d.get("venta") or d.get("compra") or 0) or None
+          except Exception as e:
+              print("Sin dolar CCL:", e)
+
+          filas = bajar("https://data912.com/live/arg_cedears")
+          ultimo = {}
+          for f in filas:
+              s = str(f.get("symbol", "")).upper()
+              c = f.get("c")
+              if s and isinstance(c, (int, float)) and c > 0:
+                  ultimo[s] = float(c)
+
+          cedears = {}
+          for s, ars in ultimo.items():
+              usd = ultimo.get(s + "D")
+              if not usd and ccl:
+                  usd = ars / ccl
+              cedears[s] = {"ars": round(ars, 4), "usd": round(usd, 6) if usd else None}
+
+          if len(cedears) < 20:
+              raise SystemExit("Llegaron muy pocos precios, no guardo nada.")
+
+          salida = {
+              "actualizado": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+              "ccl": ccl,
+              "fuente": "data912.com y dolarapi.com",
+              "cedears": cedears,
+          }
+          with open("precios.json", "w") as f:
+              json.dump(salida, f, separators=(",", ":"))
+          print("Guardados", len(cedears), "precios. SPY:", cedears.get("SPY"))
+          EOF
+
+      - name: Guardar en el repositorio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add precios.json
+          git diff --cached --quiet || git commit -m "Precios actualizados"
+          git push
