@@ -71,7 +71,7 @@
       const pr = D.precios[h.ticker];
       const price = pr ? pr.usd : h.costUsd / h.qty;
       const vUsd = h.qty * price, vArs = vUsd * ccl;
-      return Object.assign(h, { price, conPrecio: !!pr, precioFecha: pr && pr.fecha, vUsd, vArs,
+      return Object.assign(h, { price, conPrecio: !!pr, precioFecha: pr && pr.fecha, precioAuto: !!(pr && pr.auto), vUsd, vArs,
         avgUsd: h.costUsd / h.qty, avgArs: h.costArs / h.qty, plUsd: vUsd - h.costUsd, plArs: vArs - h.costArs });
     }).sort((a, b) => b.vUsd - a.vUsd);
     const invUsd = pos.reduce((s, h) => s + h.vUsd, 0);
@@ -98,6 +98,37 @@
     } catch (e) {
       if (manual) aviso("No pude traer el dólar. Revisá tu conexión o cargalo a mano en Actualizar precios.");
     } finally { if (btn) { btn.disabled = false; btn.textContent = "Actualizar"; } }
+  }
+
+  // ---------- Precios automáticos (precios.json lo genera GitHub 3 veces por día hábil) ----------
+  const fechaLocal = ms => { const d = new Date(ms); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+  let ultimoIntento = 0;
+  async function traerPreciosAuto() {
+    if (Date.now() - ultimoIntento < 10 * 60 * 1000) return;
+    ultimoIntento = Date.now();
+    try {
+      const r = await fetch("precios.json?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) return;
+      const j = await r.json();
+      const cuando = Date.parse(j.actualizado) || 0;
+      if (!cuando || !j.cedears) return;
+      const ccl = +j.ccl || (D.ccl && D.ccl.valor) || 0;
+      let cambio = false;
+      for (const t of new Set(D.ops.map(o => o.ticker))) {
+        const p = j.cedears[t]; if (!p) continue;
+        let usd = +p.usd;
+        if (!(usd > 0) && +p.ars > 0 && ccl) usd = p.ars / ccl;
+        if (!(usd > 0)) continue;
+        const prev = D.precios[t];
+        const prevCuando = prev ? (prev.cuando || Date.parse(prev.fecha) || 0) : 0;
+        if (prevCuando >= cuando) continue;
+        D.precios[t] = { usd, fecha: fechaLocal(cuando), cuando, auto: true };
+        cambio = true;
+      }
+      if (!D.ccl && ccl > 0) { D.ccl = { valor: ccl, fecha: fechaLocal(cuando), cuando, auto: true }; cambio = true; }
+      if (!D.autoPrecios || D.autoPrecios.cuando !== cuando) { D.autoPrecios = { cuando }; cambio = true; }
+      if (cambio) { guardar(); render(); }
+    } catch (e) {}
   }
 
   // ---------- Historial (un punto por día) ----------
@@ -136,7 +167,7 @@
       }
 
       // aviso de precios viejos
-      const viejos = c.pos.filter(h => !h.conPrecio || dias(h.precioFecha) >= 3);
+      const viejos = c.pos.filter(h => !h.conPrecio || dias(h.precioFecha) >= 4);
       if (viejos.length) {
         const sinPrecio = viejos.some(h => !h.conPrecio);
         $("aviso-texto").textContent = sinPrecio ? "Cargá el precio de hoy para ver cuánto vale tu cartera." :
@@ -196,6 +227,10 @@
 
   function renderInversiones(c) {
     const cur = D.moneda, A = cur === "ars";
+    const ep = $("estado-precios");
+    if (ep) ep.textContent = D.autoPrecios && D.autoPrecios.cuando ?
+      `Precios actualizados solos el ${fecha(fechaLocal(D.autoPrecios.cuando))} a las ${new Date(D.autoPrecios.cuando).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })}.` :
+      "Los precios se van a actualizar solos en días hábiles.";
     const P = $("posiciones");
     P.innerHTML = c.pos.length ? c.pos.map(h => {
       const pl = A ? h.plArs : h.plUsd, base = A ? h.costArs : h.costUsd;
@@ -334,7 +369,7 @@
     const c = calcular();
     if (!c.pos.length) { aviso("Primero cargá una inversión."); return; }
     abrir(`<h2>Actualizar precios</h2>
-      <p class="muted">Abrí cada inversión en Cocos y copiá el <b>Último precio</b>. Alcanza con hacerlo cada tanto.</p>
+      <p class="muted">Los precios se actualizan solos los días hábiles. Usá esto solo si querés cargar uno a mano: abrí la inversión en Cocos y copiá el <b>Último precio</b>.</p>
       <div class="field"><span>Los cargo en</span>
         <div class="choice"><button type="button" data-group="mon" data-value="usd" aria-pressed="true">Dólares (US$)</button><button type="button" data-group="mon" data-value="ars" aria-pressed="false">Pesos ($)</button></div></div>
       ${c.pos.map(h => `<label class="field"><span>${esc(nombre(h.ticker))} (${esc(h.ticker)})</span>
@@ -357,7 +392,7 @@
           if (ars && !(ccl > 0)) return aviso("Para precios en pesos necesito el dólar CCL.");
           root.querySelectorAll("[data-precio]").forEach(i => {
             const v = numIn(i.value); if (!(v > 0)) return;
-            D.precios[i.dataset.precio] = { usd: ars ? v / ccl : v, fecha: hoy() };
+            D.precios[i.dataset.precio] = { usd: ars ? v / ccl : v, fecha: hoy(), cuando: Date.now() };
           });
           if (ccl > 0 && (!D.ccl || Math.abs(ccl - D.ccl.valor) > 0.001)) D.ccl = { valor: ccl, fecha: hoy(), cuando: Date.now(), auto: false };
           guardar(); cerrar(); render(); aviso("Precios actualizados");
@@ -395,7 +430,7 @@
         <div class="kv"><span>Resultado</span><b class="num ${pl >= 0 ? "up" : "down"}">${esc(plata(pl, cur))} (${esc(pct(base ? pl / base * 100 : NaN))})</b></div>
       </div>
       <p class="muted">${pl >= 0 ? "Si vendieras todo hoy, ganarías" : "Si vendieras todo hoy, perderías"} aprox. ${esc(plata(Math.abs(pl), cur))}. Mientras no vendas, es una foto del momento.</p>
-      ${h.conPrecio ? `<p class="fine">Precio cargado el ${fecha(h.precioFecha)}.</p>` : `<p class="fine">Falta cargar el precio de hoy: se está usando tu precio promedio.</p>`}
+      ${h.conPrecio ? `<p class="fine">${h.precioAuto ? "Precio actualizado solo" : "Precio cargado a mano"} el ${fecha(h.precioFecha)}.</p>` : `<p class="fine">Falta cargar el precio de hoy: se está usando tu precio promedio.</p>`}
       <button class="btn" type="button" data-term="${glos}">¿Qué es ${t === "SPY" ? "SPY" : "un CEDEAR"}?</button>
       <button class="btn primary" type="button" data-preguntar-ticker="${esc(t)}">Preguntar a Claude sobre ${esc(t)}</button>`);
   }
@@ -523,7 +558,12 @@
   let tab = "inicio"; try { tab = sessionStorage.getItem("tab") || "inicio"; } catch (e) {}
   ir(tab);
   if (!D.ccl || Date.now() - (D.ccl.cuando || 0) > 60 * 60 * 1000) traerCCL(false);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && D.ccl && Date.now() - (D.ccl.cuando || 0) > 60 * 60 * 1000) traerCCL(false); });
+  traerPreciosAuto();
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) return;
+    if (D.ccl && Date.now() - (D.ccl.cuando || 0) > 60 * 60 * 1000) traerCCL(false);
+    traerPreciosAuto();
+  });
 
   if ("serviceWorker" in navigator && location.protocol === "https:") {
     window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));

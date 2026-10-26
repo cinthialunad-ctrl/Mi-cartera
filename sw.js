@@ -1,5 +1,5 @@
 // Permite que la app abra sin internet. Si cambiás algún archivo, subí el número de versión.
-const VERSION = "mi-cartera-v1";
+const VERSION = "mi-cartera-v2";
 const ARCHIVOS = ["./", "index.html", "styles.css", "app.js", "glosario.js", "manifest.webmanifest",
   "icon-192.png", "icon-512.png", "icon-maskable.png", "apple-touch-icon.png"];
 
